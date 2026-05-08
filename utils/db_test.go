@@ -32,6 +32,17 @@ func TestGetDriver(t *testing.T) {
 		t.Errorf("expected PostgresDriver for explicit postgres, got %T", driver)
 	}
 
+	// Test sqlite
+	os.Setenv("DB_TYPE", "sqlite")
+	os.Setenv("DB_PATH", "/tmp")
+	driver, err = GetDriver()
+	if err != nil {
+		t.Errorf("expected no error for sqlite driver, got %v", err)
+	}
+	if _, ok := driver.(*SqliteDriver); !ok {
+		t.Errorf("expected SqliteDriver for sqlite, got %T", driver)
+	}
+
 	// Test unsupported
 	os.Setenv("DB_TYPE", "mysql")
 	_, err = GetDriver()
@@ -42,7 +53,7 @@ func TestGetDriver(t *testing.T) {
 
 func TestLoadConfig_Missing(t *testing.T) {
 	os.Clearenv()
-	_, err := LoadConfig()
+	_, err := LoadConfig("postgres")
 	if err == nil {
 		t.Error("expected error for missing ENV, got nil")
 	}
