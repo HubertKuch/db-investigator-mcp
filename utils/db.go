@@ -35,6 +35,8 @@ func GetDriver() (DBDriver, error) {
 		return &PostgresDriver{cfg: cfg}, nil
 	case "sqlite":
 		return &SqliteDriver{cfg: cfg}, nil
+	case "mysql":
+		return &MysqlDriver{cfg: cfg}, nil
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", driverType)
 	}
@@ -49,9 +51,9 @@ func LoadConfig(driverType string) (*Config, error) {
 		DBPath:   os.Getenv("DB_PATH"),
 	}
 
-	if driverType == "postgres" {
+	if driverType == "postgres" || driverType == "mysql" {
 		if cfg.Host == "" || cfg.User == "" || cfg.Password == "" || cfg.Port == "" {
-			return nil, fmt.Errorf("missing required environment variables for postgres: DB_HOST, DB_USER, DB_PASSWORD, DB_PORT")
+			return nil, fmt.Errorf("missing required environment variables for %s: DB_HOST, DB_USER, DB_PASSWORD, DB_PORT", driverType)
 		}
 	}
 

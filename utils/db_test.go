@@ -43,8 +43,18 @@ func TestGetDriver(t *testing.T) {
 		t.Errorf("expected SqliteDriver for sqlite, got %T", driver)
 	}
 
-	// Test unsupported
+	// Test mysql
 	os.Setenv("DB_TYPE", "mysql")
+	driver, err = GetDriver()
+	if err != nil {
+		t.Errorf("expected no error for mysql driver, got %v", err)
+	}
+	if _, ok := driver.(*MysqlDriver); !ok {
+		t.Errorf("expected MysqlDriver for mysql, got %T", driver)
+	}
+
+	// Test unsupported
+	os.Setenv("DB_TYPE", "oracle")
 	_, err = GetDriver()
 	if err == nil {
 		t.Error("expected error for unsupported driver, got nil")
