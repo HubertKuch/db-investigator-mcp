@@ -3,9 +3,17 @@ package utils
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 )
+
+type Config struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+}
 
 type DBDriver interface {
 	ExecuteStatement(dbname string, statement string) (string, error)
@@ -13,59 +21,54 @@ type DBDriver interface {
 	ListDatabases() (string, error)
 }
 
-type PostgresDriver struct{}
+type PostgresDriver struct {
+	cfg *Config
+}
 
 func (p *PostgresDriver) ExecuteStatement(dbname string, statement string) (string, error) {
-	host, user, password, port, envErr := getDatabaseENV()
-
-	if envErr != nil {
-		return "", envErr
-	}
-
 	cmd := exec.Command("psql",
-		"-h", host,
-		"-p", port,
-		"-U", user,
+		"-h", p.cfg.Host,
+		"-p", p.cfg.Port,
+		"-U", p.cfg.User,
 		"-d", dbname,
 		"-c", statement,
 		"-q", "",
 		"-t", "",
 	)
 
-	cmd.Env = append(os.Environ(), "PGPASSWORD="+password)
+	cmd.Env = append(os.Environ(), "PGPASSWORD="+p.cfg.Password)
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
-	cmdErr := cmd.Run()
-	if cmdErr != nil {
-		return "", fmt.Errorf("błąd podczas wykonywania zapytania: %s. Szczegóły: %s", cmdErr, stderr.String())
+	if err := cmd.Run(); err != nil {
+		slog.Error("Failed to execute statement", "error", err, "stderr", stderr.String())
+		return "", fmt.Errorf("error executing query: %w. Details: %s", err, stderr.String())
 	}
 
 	return out.String(), nil
 }
 
 func (p *PostgresDriver) ExtractDDL(dbname string) (string, error) {
-	host, user, password, port, envErr := getDatabaseENV()
+	cmd := exec.Command("pg_dump",
+		"-h", p.cfg.Host,
+		"-p", p.cfg.Port,
+		"-U", p.cfg.User,
+		"-s", dbname,
+	)
 
-	if envErr != nil {
-		return "", envErr
-	}
-
-	cmd := exec.Command("pg_dump", "-h", host, "-p", port, "-U", user, "-s", dbname)
-
-	cmd.Env = append(os.Environ(), "PGPASSWORD="+password)
+	cmd.Env = append(os.Environ(), "PGPASSWORD="+p.cfg.Password)
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
-	cmdErr := cmd.Run()
-	if cmdErr != nil {
-		return "", fmt.Errorf("błąd podczas pobierania DDL: %s. Szczegóły bazy: %s", cmdErr, stderr.String())
+	if err := cmd.Run(); err != nil {
+		slog.Error("Failed to extract DDL", "error", err, "stderr", stderr.String())
+		return "", fmt.Errorf("error extracting DDL: %w. Details: %s", err, stderr.String())
 	}
 
 	return out.String(), nil
@@ -78,20 +81,37 @@ func (p *PostgresDriver) ListDatabases() (string, error) {
 
 func GetDriver() (DBDriver, error) {
 	driverType := os.Getenv("DB_TYPE")
-	if driverType == "" || driverType == "postgres" {
-		return &PostgresDriver{}, nil
+	if driverType == "" {
+		driverType = "postgres"
 	}
-	return nil, fmt.Errorf("unsupported database type: %s", driverType)
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	switch driverType {
+	case "postgres":
+		return &PostgresDriver{cfg: cfg}, nil
+	default:
+		return nil, fmt.Errorf("unsupported database type: %s", driverType)
+	}
 }
 
-func getDatabaseENV() (string, string, string, string, error) {
+func LoadConfig() (*Config, error) {
 	host := os.Getenv("DB_HOST")
 	user := os.Getenv("DB_USER")
 	password := os.Getenv("DB_PASSWORD")
 	port := os.Getenv("DB_PORT")
 
 	if host == "" || user == "" || password == "" || port == "" {
-		return "", "", "", "", fmt.Errorf("brak wymaganych zmiennych środowiskowych: DB_HOST, DB_USER, DB_PASSWORD, DB_PORT")
+		return nil, fmt.Errorf("missing required environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_PORT")
 	}
-	return host, user, password, port, nil
+
+	return &Config{
+		Host:     host,
+		Port:     port,
+		User:     user,
+		Password: password,
+	}, nil
 }

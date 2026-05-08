@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"praca-db-tools-mcp/utils"
 	"strings"
 	"time"
@@ -11,7 +12,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func CreateExecuteReadonlyStatementTool(driver utils.DBDriver) (mcp.Tool, server.ToolHandlerFunc) {
+func NewExecuteReadonlyStatementTool(driver utils.DBDriver) (mcp.Tool, server.ToolHandlerFunc) {
 	tool := mcp.NewTool("execute_readonly_stmt",
 		mcp.WithDescription("Wykonuje zapytanie akceptujac jedynie `SELECT`. Pelne `readonly`"),
 		mcp.WithString("databaseName",
@@ -24,18 +25,13 @@ func CreateExecuteReadonlyStatementTool(driver utils.DBDriver) (mcp.Tool, server
 		),
 	)
 
-	return tool, executeReadonlyStatementToolHandler(driver)
-}
-
-func executeReadonlyStatementToolHandler(driver utils.DBDriver) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := utils.ExtractArguments(request)
+		dbname, ok1 := args["databaseName"].(string)
+		statement, ok2 := args["stmt"].(string)
 
-		dbname := args["databaseName"].(string)
-		statement := args["stmt"].(string)
-
-		if dbname == "" || statement == "" {
-			return nil, fmt.Errorf("`databaseName` and `statement` arguments are required")
+		if !ok1 || !ok2 || dbname == "" || statement == "" {
+			return nil, fmt.Errorf("`databaseName` and `stmt` arguments are required")
 		}
 
 		cleanStmt := strings.TrimSpace(statement)
@@ -48,10 +44,10 @@ func executeReadonlyStatementToolHandler(driver utils.DBDriver) func(ctx context
 
 		jsonStatement := fmt.Sprintf("SELECT json_agg(t) FROM (%s) t;", strings.TrimSuffix(statement, ";"))
 
-		result, stmtErr := driver.ExecuteStatement(dbname, jsonStatement)
-
-		if stmtErr != nil {
-			return nil, stmtErr
+		result, err := driver.ExecuteStatement(dbname, jsonStatement)
+		if err != nil {
+			slog.Error("Failed to execute readonly statement", "db", dbname, "stmt", statement, "error", err)
+			return nil, err
 		}
 
 		return mcp.NewToolResultText(result), nil

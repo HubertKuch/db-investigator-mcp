@@ -45,7 +45,7 @@ func TestExecuteReadonlyStatementTool(t *testing.T) {
 		},
 	}
 
-	_, handler := CreateExecuteReadonlyStatementTool(mock)
+	_, handler := NewExecuteReadonlyStatementTool(mock)
 
 	req := mcp.CallToolRequest{}
 	req.Params.Name = "execute_readonly_stmt"
@@ -71,7 +71,7 @@ func TestExecuteReadonlyStatementTool(t *testing.T) {
 
 func TestExecuteReadonlyStatementTool_Security(t *testing.T) {
 	mock := &MockDriver{}
-	_, handler := CreateExecuteReadonlyStatementTool(mock)
+	_, handler := NewExecuteReadonlyStatementTool(mock)
 
 	req := mcp.CallToolRequest{}
 	req.Params.Name = "execute_readonly_stmt"
@@ -93,7 +93,7 @@ func TestListDatabasesTool(t *testing.T) {
 		},
 	}
 
-	_, handler := CreateListDatabasesTool(mock)
+	_, handler := NewListDatabasesTool(mock)
 
 	req := mcp.CallToolRequest{}
 
@@ -118,7 +118,7 @@ func TestRefreshDDLSchemaTool(t *testing.T) {
 		},
 	}
 
-	_, handler := CreateRefreshDDLSchemaTool(mock)
+	_, handler := NewRefreshDDLSchemaTool(mock)
 
 	req := mcp.CallToolRequest{}
 	req.Params.Name = "refresh_ddl_schema"

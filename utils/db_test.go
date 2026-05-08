@@ -6,6 +6,12 @@ import (
 )
 
 func TestGetDriver(t *testing.T) {
+	// Setup env for success
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_USER", "user")
+	os.Setenv("DB_PASSWORD", "pass")
+	os.Setenv("DB_PORT", "5432")
+
 	// Test default (postgres)
 	os.Setenv("DB_TYPE", "")
 	driver, err := GetDriver()
@@ -34,9 +40,9 @@ func TestGetDriver(t *testing.T) {
 	}
 }
 
-func TestGetDatabaseENV_Missing(t *testing.T) {
+func TestLoadConfig_Missing(t *testing.T) {
 	os.Clearenv()
-	_, _, _, _, err := getDatabaseENV()
+	_, err := LoadConfig()
 	if err == nil {
 		t.Error("expected error for missing ENV, got nil")
 	}

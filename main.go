@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log/slog"
+	"os"
+
 	"praca-db-tools-mcp/tools"
 	"praca-db-tools-mcp/utils"
 
@@ -8,29 +11,26 @@ import (
 )
 
 func main() {
-	_, err := utils.EnsureCacheDir()
-
-	if err != nil {
-		panic(err)
+	if _, err := utils.GetCacheDir(); err != nil {
+		slog.Error("Failed to initialize cache directory", "error", err)
+		os.Exit(1)
 	}
 
 	driver, err := utils.GetDriver()
 	if err != nil {
-		panic(err)
+		slog.Error("Failed to get database driver", "error", err)
+		os.Exit(1)
 	}
 
 	s := server.NewMCPServer("db-tools-server", "1.0.0")
 
-	t1, h1 := tools.CreateRefreshDDLSchemaTool(driver)
-	s.AddTool(t1, h1)
+	s.AddTool(tools.NewRefreshDDLSchemaTool(driver))
+	s.AddTool(tools.NewExecuteReadonlyStatementTool(driver))
+	s.AddTool(tools.NewListDatabasesTool(driver))
 
-	t2, h2 := tools.CreateExecuteReadonlyStatementTool(driver)
-	s.AddTool(t2, h2)
-
-	t3, h3 := tools.CreateListDatabasesTool(driver)
-	s.AddTool(t3, h3)
-
+	slog.Info("Starting MCP server")
 	if err := server.ServeStdio(s); err != nil {
-		panic(err)
+		slog.Error("Server error", "error", err)
+		os.Exit(1)
 	}
 }

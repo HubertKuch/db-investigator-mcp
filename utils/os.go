@@ -6,33 +6,17 @@ import (
 	"path/filepath"
 )
 
+// GetCacheDir returns the path to the cache directory and ensures it exists.
 func GetCacheDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("nie udało się pobrać katalogu domowego: %w", err)
+		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}
 
 	cacheDir := filepath.Join(home, ".cache", "db-investigator")
 
-	err = os.MkdirAll(cacheDir, 0755)
-	if err != nil {
-		return "", fmt.Errorf("nie udało się stworzyć katalogu cache: %w", err)
-	}
-
-	return cacheDir, nil
-}
-
-func EnsureCacheDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("nie udało się pobrać katalogu domowego: %w", err)
-	}
-
-	cacheDir := filepath.Join(home, ".cache", "db-investigator")
-
-	err = os.MkdirAll(cacheDir, 0755)
-	if err != nil {
-		return "", fmt.Errorf("nie udało się zainicjalizować katalogu cache: %w", err)
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	return cacheDir, nil

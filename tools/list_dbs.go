@@ -2,9 +2,7 @@ package tools
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
+	"log/slog"
 	"praca-db-tools-mcp/utils"
 	"strings"
 
@@ -12,45 +10,24 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func CreateListDatabasesTool(driver utils.DBDriver) (mcp.Tool, server.ToolHandlerFunc) {
+func NewListDatabasesTool(driver utils.DBDriver) (mcp.Tool, server.ToolHandlerFunc) {
 	tool := mcp.NewTool("list_dbs",
 		mcp.WithDescription("Zwraca listę wszystkich dostępnych baz danych w klastrze."),
 	)
 
-	return tool, listDatabasesHandler(driver)
-}
-
-func listDatabasesHandler(driver utils.DBDriver) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	var saveToGlobalCache = func(content string) (string, error) {
-		cacheDir, _ := utils.GetCacheDir()
-
-		fullPath := filepath.Join(cacheDir, "available_dbs.txt")
-
-		err := os.WriteFile(fullPath, []byte(content), 0644)
-
-		if err != nil {
-			return "", fmt.Errorf("błąd podczas zapisu pliku: %w", err)
-		}
-
-		return fullPath, nil
-	}
-
-	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-
+	return tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		result, err := driver.ListDatabases()
-
 		if err != nil {
-			return nil, fmt.Errorf("nie udało się pobrać listy baz: %w", err)
+			slog.Error("Failed to list databases", "error", err)
+			return nil, err
 		}
 
 		if result == "" || strings.TrimSpace(result) == "null" {
 			return mcp.NewToolResultText("[]"), nil
 		}
 
-		_, err = saveToGlobalCache(result)
-
-		if err != nil {
-			return nil, err
+		if _, err := saveToCache("available_dbs.txt", result); err != nil {
+			slog.Warn("Failed to save database list to cache", "error", err)
 		}
 
 		return mcp.NewToolResultText(result), nil
