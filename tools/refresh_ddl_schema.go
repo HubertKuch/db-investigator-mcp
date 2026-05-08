@@ -11,7 +11,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func CreateRefreshDDLSchemaTool() (mcp.Tool, server.ToolHandlerFunc) {
+func CreateRefreshDDLSchemaTool(driver utils.DBDriver) (mcp.Tool, server.ToolHandlerFunc) {
 	tool := mcp.NewTool("refresh_ddl_schema",
 		mcp.WithDescription("Pobiera strukturę DDL (definicje tabel) dla podanej bazy danych. Używaj tego, gdy użytkownik pyta o strukturę, klucze lub tabele."),
 		mcp.WithString("databaseName",
@@ -20,10 +20,10 @@ func CreateRefreshDDLSchemaTool() (mcp.Tool, server.ToolHandlerFunc) {
 		),
 	)
 
-	return tool, createRefreshDDLSchemaHandler()
+	return tool, createRefreshDDLSchemaHandler(driver)
 }
 
-func createRefreshDDLSchemaHandler() func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func createRefreshDDLSchemaHandler(driver utils.DBDriver) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	var saveToGlobalCache = func(dbname string, content string) (string, error) {
 		cacheDir, _ := utils.GetCacheDir()
 
@@ -48,7 +48,7 @@ func createRefreshDDLSchemaHandler() func(ctx context.Context, request mcp.CallT
 			return nil, fmt.Errorf("databaseName argument is required")
 		}
 
-		ddlResult, err := utils.ExtractDDL(dbName)
+		ddlResult, err := driver.ExtractDDL(dbName)
 
 		if err != nil {
 			println(err.Error())

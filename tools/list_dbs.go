@@ -12,15 +12,15 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func CreateListDatabasesTool() (mcp.Tool, server.ToolHandlerFunc) {
+func CreateListDatabasesTool(driver utils.DBDriver) (mcp.Tool, server.ToolHandlerFunc) {
 	tool := mcp.NewTool("list_dbs",
 		mcp.WithDescription("Zwraca listę wszystkich dostępnych baz danych w klastrze."),
 	)
 
-	return tool, listDatabasesHandler()
+	return tool, listDatabasesHandler(driver)
 }
 
-func listDatabasesHandler() func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func listDatabasesHandler(driver utils.DBDriver) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	var saveToGlobalCache = func(content string) (string, error) {
 		cacheDir, _ := utils.GetCacheDir()
 
@@ -37,9 +37,7 @@ func listDatabasesHandler() func(ctx context.Context, request mcp.CallToolReques
 
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 
-		query := "SELECT json_agg(datname) FROM pg_database WHERE datistemplate = false AND datname != 'postgres';"
-
-		result, err := utils.ExecuteStatement("postgres", query)
+		result, err := driver.ListDatabases()
 
 		if err != nil {
 			return nil, fmt.Errorf("nie udało się pobrać listy baz: %w", err)

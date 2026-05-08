@@ -11,7 +11,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func CreateExecuteReadonlyStatementTool() (mcp.Tool, server.ToolHandlerFunc) {
+func CreateExecuteReadonlyStatementTool(driver utils.DBDriver) (mcp.Tool, server.ToolHandlerFunc) {
 	tool := mcp.NewTool("execute_readonly_stmt",
 		mcp.WithDescription("Wykonuje zapytanie akceptujac jedynie `SELECT`. Pelne `readonly`"),
 		mcp.WithString("databaseName",
@@ -24,10 +24,10 @@ func CreateExecuteReadonlyStatementTool() (mcp.Tool, server.ToolHandlerFunc) {
 		),
 	)
 
-	return tool, executeReadonlyStatementToolHandler()
+	return tool, executeReadonlyStatementToolHandler(driver)
 }
 
-func executeReadonlyStatementToolHandler() func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func executeReadonlyStatementToolHandler(driver utils.DBDriver) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := utils.ExtractArguments(request)
 
@@ -48,7 +48,7 @@ func executeReadonlyStatementToolHandler() func(ctx context.Context, request mcp
 
 		jsonStatement := fmt.Sprintf("SELECT json_agg(t) FROM (%s) t;", strings.TrimSuffix(statement, ";"))
 
-		result, stmtErr := utils.ExecuteStatement(dbname, jsonStatement)
+		result, stmtErr := driver.ExecuteStatement(dbname, jsonStatement)
 
 		if stmtErr != nil {
 			return nil, stmtErr
