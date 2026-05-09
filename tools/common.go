@@ -21,3 +21,19 @@ func saveToCache(filename string, content string) (string, error) {
 
 	return fullPath, nil
 }
+
+// readFromCache reads the content of a file from the global cache directory.
+func readFromCache(filename string) (string, error) {
+	cacheDir, err := utils.GetCacheDir()
+	if err != nil {
+		return "", err
+	}
+
+	fullPath := filepath.Join(cacheDir, filename)
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}

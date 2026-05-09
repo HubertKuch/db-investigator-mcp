@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"fmt"
+	"os"
+	"praca-db-tools-mcp/utils"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -134,5 +136,53 @@ func TestRefreshDDLSchemaTool(t *testing.T) {
 	text := result.Content[0].(mcp.TextContent).Text
 	if text != "CREATE TABLE users (...);" {
 		t.Errorf("expected DDL result, got %s", text)
+	}
+}
+
+func TestCaching(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "mcp-test-cache-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	utils.SetCacheDirOverride(tmpDir)
+	defer utils.SetCacheDirOverride("")
+
+	callCount := 0
+	mock := &MockDriver{
+		ListDBsFunc: func() (string, error) {
+			callCount++
+			return `["db1"]`, nil
+		},
+	}
+
+	_, handler := NewListDatabasesTool(mock)
+	req := mcp.CallToolRequest{}
+
+	_, err = handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("first call failed: %v", err)
+	}
+	if callCount != 1 {
+		t.Errorf("expected driver to be called once, got %d", callCount)
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("second call failed: %v", err)
+	}
+	if callCount != 1 {
+		t.Errorf("expected driver to NOT be called again, got %d", callCount)
+	}
+
+	text := result.Content[0].(mcp.TextContent).Text
+	if text != `["db1"]` {
+		t.Errorf("expected cached result, got %s", text)
+	}
+
+	cacheFile := tmpDir + "/available_dbs.txt"
+	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
+		t.Errorf("expected cache file %s to exist", cacheFile)
 	}
 }

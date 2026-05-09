@@ -26,13 +26,20 @@ func NewRefreshDDLSchemaTool(driver utils.DBDriver) (mcp.Tool, server.ToolHandle
 			return nil, fmt.Errorf("databaseName argument is required")
 		}
 
+		cacheFile := fmt.Sprintf("schema_%s.sql", dbName)
+
+		if cached, err := readFromCache(cacheFile); err == nil {
+			slog.Info("Using cached DDL schema", "db", dbName)
+			return mcp.NewToolResultText(cached), nil
+		}
+
 		ddlResult, err := driver.ExtractDDL(dbName)
 		if err != nil {
 			slog.Error("Failed to extract DDL", "db", dbName, "error", err)
 			return nil, err
 		}
 
-		if _, err := saveToCache(fmt.Sprintf("schema_%s.sql", dbName), ddlResult); err != nil {
+		if _, err := saveToCache(cacheFile, ddlResult); err != nil {
 			slog.Warn("Failed to save DDL to cache", "db", dbName, "error", err)
 		}
 
